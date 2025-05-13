@@ -1,0 +1,294 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Анонимный чат</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            max-width: 1200px;
+            min-width: 300px;
+            width: 100%;
+            margin-left: auto;
+            margin-right: auto;
+            padding: 20px;
+            background: linear-gradient(to bottom, #000000, #1C2526); /* Градиент от чёрного к тёмно-синему */
+            color: #FFFFFF; /* Белый текст для body */
+        }
+        .post {
+            border: 1px solid #FFFFFF; /* Белая обводка */
+            padding: 10px;
+            margin-bottom: 10px;
+            text-align: left;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            border-radius: 15px; /* Закругление углов 15px */
+            background-color: rgba(0, 0, 0, 0.3); /* Полупрозрачный чёрный фон для контраста */
+            color: #FFFFFF; /* Белый текст */
+        }
+        .comment {
+            border: 1px solid #FFFFFF; /* Белая обводка */
+            border-left: 4px solid #000000; /* Чёрная полоска слева */
+            padding: 10px;
+            margin-bottom: 10px;
+            text-align: left;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            border-radius: 15px; /* Закругление углов 15px */
+            background-color: rgba(0, 0, 0, 0.3); /* Полупрозрачный чёрный фон */
+            color: #FFFFFF; /* Белый текст */
+        }
+        textarea, input[type="text"] {
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 8px;
+            text-align: center;
+            border-radius: 15px; /* Закругление углов 15px */
+            border: 1px solid #FFFFFF; /* Белая обводка */
+            background-color: rgba(255, 255, 255, 0.1); /* Лёгкий полупрозрачный фон */
+            color: #FFFFFF; /* Белый текст */
+        }
+        textarea::placeholder, input[type="text"]::placeholder {
+            color: #CCCCCC; /* Светло-серый для плейсхолдера */
+            text-align: center;
+        }
+        button {
+            padding: 5px 10px;
+            cursor: pointer;
+            display: block;
+            margin: 10px auto;
+            border-radius: 15px; /* Закругление углов 15px */
+            border: 1px solid #FFFFFF; /* Белая обводка */
+            background-color: #000000; /* Чёрный фон */
+            color: #FFFFFF; /* Белый текст */
+        }
+        .error {
+            color: #FF5555; /* Красный для ошибок, чтобы выделялся */
+            margin: 5px 0;
+            text-align: center;
+        }
+        h1, h2, h3 {
+            text-align: center;
+            margin: 10px 0;
+            color: #FFFFFF; /* Белый текст */
+        }
+        #posts {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        #post-form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        #post-form input, #post-form textarea, #post-form button, #post-form p {
+            width: 100%;
+            max-width: 100%;
+        }
+
+        /* Медиа-запросы для адаптивности */
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            .post, .comment, #post-form, #posts {
+                max-width: 100%;
+                padding: 5px;
+            }
+            textarea, input[type="text"] {
+                padding: 5px;
+                font-size: 14px;
+            }
+            button {
+                padding: 5px 8px;
+                font-size: 14px;
+            }
+            h1, h2, h3 {
+                font-size: 1.2em;
+            }
+        }
+        @media (max-width: 400px) {
+            body {
+                padding: 5px;
+            }
+            .post, .comment {
+                padding: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Анонимный чат</h1>
+    
+    <div id="post-form">
+        <h2>Создать пост</h2>
+        <input type="text" id="postAuthor" placeholder="Ваше имя" required>
+        <textarea id="postContent" placeholder="Текст поста" rows="4" required></textarea>
+        <button onclick="createPost()">Опубликовать</button>
+        <p id="postError" class="error"></p>
+    </div>
+
+    <div id="posts"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', loadPosts);
+
+        function createPost() {
+            const author = document.getElementById('postAuthor').value.trim();
+            const content = document.getElementById('postContent').value.trim();
+            const error = document.getElementById('postError');
+
+            if (!author || !content) {
+                error.textContent = 'Пожалуйста, заполните все поля';
+                return;
+            }
+
+            error.textContent = '';
+            const post = {
+                id: Date.now(),
+                author,
+                content,
+                date: new Date().toLocaleString(),
+                comments: []
+            };
+
+            savePost(post);
+            document.getElementById('postAuthor').value = '';
+            document.getElementById('postContent').value = '';
+            loadPosts();
+        }
+
+        function savePost(post) {
+            let posts = JSON.parse(localStorage.getItem('posts')) || [];
+            posts.push(post);
+            localStorage.setItem('posts', JSON.stringify(posts));
+        }
+
+        function loadPosts() {
+            const postsContainer = document.getElementById('posts');
+            postsContainer.innerHTML = '';
+            let posts = JSON.parse(localStorage.getItem('posts')) || [];
+
+            posts.forEach(post => {
+                const postElement = document.createElement('div');
+                postElement.className = 'post';
+                postElement.innerHTML = `
+                    <p><strong>${escapeHTML(post.author)}</strong> (${post.date})</p>
+                    <p>${escapeHTML(post.content)}</p>
+                    <div>
+                        <h3>Комментарии</h3>
+                        <input type="text" id="commentAuthor${post.id}" placeholder="Ваше имя" required>
+                        <textarea id="commentContent${post.id}" placeholder="Ваш комментарий" rows="2" required></textarea>
+                        <button onclick="addComment(${post.id})">Добавить комментарий</button>
+                        <p id="commentError${post.id}" class="error"></p>
+                        <div id="comments${post.id}">
+                            ${post.comments.map(comment => `
+                                <div class="comment">
+                                    <p><strong>${escapeHTML(comment.author)}</strong> (${comment.date})</p>
+                                    <p>${escapeHTML(comment.content)}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                postsContainer.appendChild(postElement);
+            });
+        }
+
+        function addComment(postId) {
+            const author = document.getElementById(`commentAuthor${postId}`).value.trim();
+            const content = document.getElementById(`commentContent${postId}`).value.trim();
+            const error = document.getElementById(`commentError${postId}`);
+
+            if (!author || !content) {
+                error.textContent = 'Пожалуйста, заполните все поля';
+                return;
+            }
+
+            error.textContent = '';
+            const comment = {
+                author,
+                content,
+                date: new Date().toLocaleString()
+            };
+
+            let posts = JSON.parse(localStorage.getItem('posts')) || [];
+            const post = posts.find(p => p.id === postId);
+            if (post) {
+                post.comments.push(comment);
+                localStorage.setItem('posts', JSON.stringify(posts));
+            }
+
+            document.getElementById(`commentAuthor${postId}`).value = '';
+            document.getElementById(`commentContent${postId}`).value = '';
+            loadPosts();
+        }
+
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
